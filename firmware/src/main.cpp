@@ -1,4 +1,6 @@
 #include <Arduino.h>
+#include <HTTPClient.h>
+
 #include "config.h"
 #include "wifi.h"
 #include "camera.h"
@@ -8,7 +10,6 @@ volatile bool bellRang = false;
 void IRAM_ATTR on_door_rang() {
   Serial.println("Hi");
   bellRang = true;
-  // do smth
 }
 
 void ring_buzzer() {
@@ -20,6 +21,16 @@ void ring_buzzer() {
 void notify_server() {
   // POST bell_rang 
   // stream: 192.168.10.a/stream
+
+  HTTPClient http;
+
+  http.begin(SERVER_IP, SERVER_PORT, SERVER_PATH);
+  http.addHeader("Content-Type", "application/json");
+  String body = "{\"event\":\"bell_rang\",\"stream_url\":\"http://" + WiFi.localIP().toString() + "/stream\"}";
+
+  int responseCode = http.POST(body);
+  Serial.printf("Server response: %d\n", responseCode);
+  http.end();
 }
 
 // -----------
