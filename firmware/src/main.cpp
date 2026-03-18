@@ -4,6 +4,7 @@
 #include "config.h"
 #include "wifi.h"
 #include "camera.h"
+#include "server.h"
 
 volatile bool bellRang = false;
 void IRAM_ATTR on_door_rang() { bellRang = true; }
@@ -41,6 +42,7 @@ void setup() {
 
   connect_to_wifi();
   init_camera();
+  init_server();
 
   Serial.println("starting");
 }
