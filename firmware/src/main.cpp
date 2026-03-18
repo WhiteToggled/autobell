@@ -6,11 +6,7 @@
 #include "camera.h"
 
 volatile bool bellRang = false;
-
-void IRAM_ATTR on_door_rang() {
-  Serial.println("Hi");
-  bellRang = true;
-}
+void IRAM_ATTR on_door_rang() { bellRang = true; }
 
 void ring_buzzer() {
     digitalWrite(BUZZER_PIN, HIGH);
@@ -37,6 +33,7 @@ void notify_server() {
 
 void setup() {
   Serial.begin(115200);
+  Serial.printf("PSRAM initialized. Size %d bytes\n", ESP.getPsramSize());
 
   pinMode(BELL_PIN, INPUT_PULLUP);
   pinMode(BUZZER_PIN, OUTPUT);

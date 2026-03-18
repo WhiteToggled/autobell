@@ -30,7 +30,9 @@ void init_camera() {
     config.pixel_format = PIXFORMAT_JPEG; // PIXFORMAT_RGB565
     config.frame_size = CAMERA_FRAMESIZE;
     config.jpeg_quality = CAMERA_QUALITY;
-    config.fb_count = 1; // framebuffers
+    config.fb_count = 2; // framebuffers
+    config.grab_mode = CAMERA_GRAB_LATEST;
+    config.fb_location = CAMERA_FB_IN_PSRAM;
 
     // todo : set up flash
     esp_err_t err = esp_camera_init(&config);
