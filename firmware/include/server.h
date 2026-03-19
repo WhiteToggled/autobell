@@ -37,9 +37,9 @@ void init_server() {
     if (httpd_start(&server, &config) == ESP_OK) {
         httpd_register_uri_handler(server, &image_uri);
         httpd_register_uri_handler(server, &stream_uri);
-        Serial.println("HTTP server started");
+        Serial.println("hosting http server successfully.");
     } else {
-        Serial.println("HTTP server failed to start");
+        Serial.println("unable to host http server.");
     }
 }
 // void init_server() {
@@ -57,9 +57,11 @@ void init_server() {
 static esp_err_t handle_image(httpd_req_t *req) {
     camera_fb_t *fb = esp_camera_fb_get();
     if (!fb) {
+        Serial.println("Camera Capture failed!!");
         httpd_resp_send_500(req);
         return ESP_FAIL;
     }
+    Serial.printf("someone requested a pic. Length: %d\n", fb->len);
 
     httpd_resp_set_type(req, "image/jpeg");
     httpd_resp_set_hdr(req, "Access-Control-Allow-Origin", "*");
@@ -95,10 +97,53 @@ static esp_err_t handle_image(httpd_req_t *req) {
 //     request->send(response);
 // }
 
+static esp_err_t handle_stream(httpd_req_t *req) {
+    Serial.println("Someone requested a video stream");
+    camera_fb_t* fb = NULL;
+    esp_err_t res = ESP_OK;
+    char part_header[128];
+
+    httpd_resp_set_type(req, "multipart/x-mixed-replace; boundary=123456789000000000000987654321");
+    httpd_resp_set_hdr(req, "Access-Control-Allow-Origin", "*");
+
+    while (true) {
+        fb = esp_camera_fb_get();
+        if (!fb) {
+            Serial.println("Camera Capture failed!!");
+            res = ESP_FAIL;
+            break;
+        }
+
+        // send frame boundary
+        res = httpd_resp_send_chunk(req, "\r\n--123456789000000000000987654321\r\n", 36);
+        if (res != ESP_OK) {
+            esp_camera_fb_return(fb);
+            break;
+        }
+
+        size_t header_len = snprintf(
+            part_header, sizeof(part_header),
+            "--frame\r\nContent-Type: image/jpeg\r\nContent-Length: %u\r\n\r\n",
+            fb->len);
+
+        // send header
+        res = httpd_resp_send_chunk(req, part_header, header_len);
+        if (res != ESP_OK) {
+            esp_camera_fb_return(fb);
+            break;
+        }
+
+        // send image binary
+        res = httpd_resp_send_chunk(req, (const char *)fb->buf, fb->len);
+        esp_camera_fb_return(fb);
+        if (res != ESP_OK) {
+            break;
+        }
+    }
+
+    httpd_resp_send_chunk(req, NULL, 0); // signal end-of-stream
+    return res;
+}
 // void handle_stream(AsyncWebServerRequest* request) {
 //     // todo
 // }
-static esp_err_t handle_stream(httpd_req_t *req) {
-    // todo
-    return ESP_OK;
-}

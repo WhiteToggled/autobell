@@ -13,6 +13,6 @@ void connect_to_wifi() {
     }
 
     Serial.println("");
-    Serial.print("Conncted! IP Address : ");
+    Serial.print("Conncted to wifi! Assigned IP Address : ");
     Serial.println(WiFi.localIP());
 }

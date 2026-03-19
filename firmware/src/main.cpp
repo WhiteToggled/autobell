@@ -5,6 +5,7 @@
 #include "wifi.h"
 #include "camera.h"
 #include "server.h"
+#include "esp_wifi.h"
 
 volatile bool bellRang = false;
 void IRAM_ATTR on_door_rang() { bellRang = true; }
@@ -44,14 +45,18 @@ void setup() {
   init_camera();
   init_server();
 
-  Serial.println("starting");
+  wifi_ap_record_t ap;
+  esp_wifi_sta_get_ap_info(&ap);
+  Serial.printf("RSSI: %d dBm\n", ap.rssi);
+
+  Serial.println("hi im doing stuff now");
 }
 
 void loop() {
   if (bellRang) {
     bellRang = false;
 
-    Serial.println("hi im doing stuff now");
+    Serial.println("hello someone rang the bell");
     ring_buzzer();
     notify_server();
   }
