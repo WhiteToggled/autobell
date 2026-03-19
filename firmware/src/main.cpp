@@ -8,7 +8,15 @@
 #include "esp_wifi.h"
 
 volatile bool bellRang = false;
-void IRAM_ATTR on_door_rang() { bellRang = true; }
+volatile unsigned long lastRangTime = 0;
+const unsigned long DEBOUNCE_MS = 2000; // 2seconds
+void IRAM_ATTR on_door_rang() {
+    unsigned long now = millis();
+    if (now - lastRangTime > DEBOUNCE_MS) {
+        lastRangTime = now;
+        bellRang = true;
+    }
+}
 
 void ring_buzzer() {
     digitalWrite(BUZZER_PIN, HIGH);

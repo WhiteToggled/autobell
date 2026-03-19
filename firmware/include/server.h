@@ -1,8 +1,8 @@
 #pragma once
 
+// TODO : add a global shared framebuffer so each endpoint doesn't take its own frames. lock it at some fps
 // esp_http_server is synchr, blocking, creates RTOS thread. simpler and less RAM
 // ESPAsyncWebServer is async, nonblocking, better concurrency. (v)
-// TODO choose one 
 
 // #include "esp_http_server.h"
 #include <ESPAsyncWebServer.h>
@@ -64,23 +64,19 @@ void handle_image(AsyncWebServerRequest* request) {
 }
 
 void handle_stream(AsyncWebServerRequest* request) {
-    // allocate state for this client connection
     StreamState* state = new StreamState();
     state->fb = NULL;
     state->index = 0;
     state->sending_header = false;
     state->header_len = 0;
 
-    // begin a chunked multipart response
     AsyncWebServerResponse* response = request->beginChunkedResponse(
         "multipart/x-mixed-replace; boundary=frame",
         [state](uint8_t* buffer, size_t maxLen, size_t index) -> size_t {
-            // if we have no current frame, capture one
             if (!state->fb) {
                 state->fb = esp_camera_fb_get();
                 if (!state->fb) {
-                    // camera failed, send nothing this cycle
-                    return 0;
+                    return 0; // skip this frame
                 }
 
                 // build the frame header
@@ -96,7 +92,7 @@ void handle_stream(AsyncWebServerRequest* request) {
 
             size_t written = 0;
 
-            // send header bytes first
+            // send header
             if (state->sending_header) {
                 size_t remaining = state->header_len - state->index;
                 size_t toSend = min(remaining, maxLen);
@@ -105,7 +101,6 @@ void handle_stream(AsyncWebServerRequest* request) {
                 written = toSend;
 
                 if (state->index >= state->header_len) {
-                    // header done, move to JPEG data
                     state->sending_header = false;
                     state->index = 0;
                 }
@@ -121,8 +116,7 @@ void handle_stream(AsyncWebServerRequest* request) {
             written = toSend;
 
             if (state->index >= state->fb->len) {
-                // frame done, return buffer and reset for next frame
-                esp_camera_fb_return(state->fb);
+                esp_camera_fb_return(state->fb); // getting ready for next frame
                 state->fb = NULL;
                 state->index = 0;
 
@@ -139,7 +133,7 @@ void handle_stream(AsyncWebServerRequest* request) {
 
     response->addHeader("Access-Control-Allow-Origin", "*");
 
-    // clean up state when client disconnects
+    // clean up state
     request->onDisconnect([state]() {
         if (state->fb) {
             esp_camera_fb_return(state->fb);
@@ -175,8 +169,8 @@ void handle_stream(AsyncWebServerRequest* request) {
 //         Serial.println("unable to host http server.");
 //     }
 // }
-// static esp_err_t handle_image(httpd_req_t *req) {
-//     camera_fb_t *fb = esp_camera_fb_get();
+// static esp_err_t handle_image(httpd_req_t* req) {
+//     camera_fb_t* fb = esp_camera_fb_get();
 //     if (!fb) {
 //         Serial.println("Camera Capture failed!!");
 //         httpd_resp_send_500(req);
@@ -185,11 +179,11 @@ void handle_stream(AsyncWebServerRequest* request) {
 //     Serial.printf("someone requested a pic. Length: %d\n", fb->len);
 //     httpd_resp_set_type(req, "image/jpeg");
 //     httpd_resp_set_hdr(req, "Access-Control-Allow-Origin", "*");
-//     esp_err_t res = httpd_resp_send(req, (const char *)fb->buf, fb->len);
+//     esp_err_t res = httpd_resp_send(req, (const char*)fb->buf, fb->len);
 //     esp_camera_fb_return(fb);
 //     return res;
 // }
-// static esp_err_t handle_stream(httpd_req_t *req) {
+// static esp_err_t handle_stream(httpd_req_t* req) {
 //     Serial.println("Someone requested a video stream");
 //     camera_fb_t* fb = NULL;
 //     esp_err_t res = ESP_OK;
@@ -221,7 +215,7 @@ void handle_stream(AsyncWebServerRequest* request) {
 //             break;
 //         }
 //         // send image binary
-//         res = httpd_resp_send_chunk(req, (const char *)fb->buf, fb->len);
+//         res = httpd_resp_send_chunk(req, (const char*)fb->buf, fb->len);
 //         esp_camera_fb_return(fb);
 //         if (res != ESP_OK) {
 //             break;
